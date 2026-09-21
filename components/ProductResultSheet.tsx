@@ -759,14 +759,16 @@ const styles = StyleSheet.create({
   },
   dragZone: {
     alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 6,
+    justifyContent: 'center',
+    paddingTop: 12,
+    paddingBottom: 10,
+    minHeight: 36,
   },
   grabber: {
-    width: 42,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.steel,
+    width: 48,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.silverDim,
   },
   loading: {
     paddingVertical: 64,
