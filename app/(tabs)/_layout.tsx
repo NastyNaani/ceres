@@ -43,7 +43,7 @@ function CeresTabBar({ state, navigation }: any) {
     >
       <View style={styles.dock}>
         <BlurView
-          intensity={Platform.OS === 'android' ? 48 : 68}
+          intensity={Platform.OS === 'android' ? 28 : 42}
           tint="dark"
           style={styles.bar}
         >
@@ -136,27 +136,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     alignItems: 'center',
   },
-  dock: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: radius.pill,
-    shadowColor: '#000',
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 14,
-  },
   bar: {
     borderRadius: radius.pill,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(214,218,224,0.18)',
-    backgroundColor: 'rgba(12,12,15,0.92)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(214,218,224,0.22)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(12,12,15,0.55)' : 'rgba(12,12,15,0.28)',
   },
   barInner: {
     flexDirection: 'row',
     paddingVertical: 10,
     paddingHorizontal: 6,
+  },
+  dock: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: radius.pill,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
   tab: {
     flex: 1,

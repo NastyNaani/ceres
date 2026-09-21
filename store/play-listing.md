@@ -19,14 +19,24 @@ Point your camera at a food barcode. Ceres looks up the product on Open Food Fac
 
 Data from Open Food Facts. Ceres does not invent a secret black-box grade. Not medical advice.
 
-## Store assets (ready in /store)
+## Screenshot captions (in-app copy)
+
+| Asset | Caption / notes |
+|---|---|
+| `play-screenshot-01-scan.png` | **Know what you buy** — on-screen: *Align a food barcode inside the frame* |
+| `play-screenshot-02-verdict.png` | **Instant shelf verdicts** — sample verdict *Appalling* / *-6/10* with *At a glance* |
+| `play-screenshot-03-history.png` | **Private, on this device** — History + filters + score badges |
+| `play-screenshot-04-settings.png` | **Tuned for the aisle** — Scanning / Allergen watch copy from Settings |
+
+## Store assets (ready in `/store`)
+
+Angled premium phone graphics (1080×1920):
 
 | File | Spec |
 |---|---|
 | `play-icon-512.png` | 512×512 high-res icon |
 | `play-feature-graphic.png` | 1024×500 feature graphic |
-| `play-screenshot-01-scan.png` | 1080×1920 phone |
-| `play-screenshot-02-verdict.png` | 1080×1920 phone |
-| `play-screenshot-03-history.png` | 1080×1920 phone |
-
-Regenerate from masters: `python store/export-play-assets.py`
+| `play-screenshot-01-scan.png` | Scan |
+| `play-screenshot-02-verdict.png` | Verdict |
+| `play-screenshot-03-history.png` | History |
+| `play-screenshot-04-settings.png` | Settings |

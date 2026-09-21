@@ -300,17 +300,23 @@ export function ProductResultSheet({
                   },
                 ]}
               >
-                <View style={styles.verdictTop}>
-                  <ScoreBadge verdict={product.verdict} rating={product.rating} />
-                  <View style={styles.ratingPill}>
-                    <Text style={[styles.ratingValue, meta && { color: meta.color }]}>
-                      {formatRating(product.rating)}
-                    </Text>
-                  </View>
-                </View>
+                <ScoreBadge verdict={product.verdict} rating={product.rating} size="lg" />
                 <SilverText style={styles.verdictTitle}>
                   {verdictLabel(product.verdict, product.rating)}
                 </SilverText>
+                <View
+                  style={[
+                    styles.ratingPill,
+                    meta && {
+                      borderColor: meta.color,
+                      backgroundColor: `${meta.color}22`,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.ratingValue, meta && { color: meta.color }]}>
+                    {formatRating(product.rating)}
+                  </Text>
+                </View>
                 <Text style={styles.verdictPrompt}>{prompt}</Text>
                 <Text style={styles.verdictHint}>{verdictHint(product.verdict, product.rating)}</Text>
               </View>
@@ -834,7 +840,7 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     borderRadius: radius.lg,
     padding: spacing.lg,
-    gap: 8,
+    gap: 10,
     backgroundColor: 'rgba(255,255,255,0.03)',
   },
   watchAlert: {
@@ -860,28 +866,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  verdictTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
   ratingPill: {
-    borderWidth: 1,
-    borderColor: colors.hairline,
+    alignSelf: 'flex-start',
+    borderWidth: 1.5,
+    borderColor: colors.hairlineStrong,
     borderRadius: radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   ratingValue: {
     fontFamily: font.displayBold,
-    fontSize: 16,
-    letterSpacing: 0.4,
+    fontSize: 24,
+    letterSpacing: 0.6,
   },
   verdictTitle: {
     fontFamily: font.displayBold,
-    fontSize: 26,
+    fontSize: 34,
+    letterSpacing: 0.4,
+    lineHeight: 40,
   },
   verdictPrompt: {
     fontFamily: font.bodySemi,

@@ -30,20 +30,30 @@ export function scoreMeta(verdict: Verdict, rating?: number | null) {
 export function ScoreBadge({
   verdict,
   rating,
+  size = 'md',
 }: {
   verdict: Verdict;
   rating?: number | null;
+  size?: 'md' | 'lg';
 }) {
   const m = scoreMeta(verdict, rating);
   const label = verdictLabel(verdict, rating);
+  const large = size === 'lg';
   return (
     <View
-      style={[styles.badge, { borderColor: `${m.color}55` }]}
+      style={[
+        styles.badge,
+        large && styles.badgeLg,
+        {
+          borderColor: `${m.color}88`,
+          backgroundColor: `${m.color}18`,
+        },
+      ]}
       accessibilityRole="text"
       accessibilityLabel={`Product score: ${label}`}
     >
-      <Icon name="shield" size={12} color={m.color} />
-      <Text style={[styles.text, { color: m.color }]}>{label}</Text>
+      <Icon name="shield" size={large ? 14 : 12} color={m.color} />
+      <Text style={[styles.text, large && styles.textLg, { color: m.color }]}>{label}</Text>
     </View>
   );
 }
@@ -52,12 +62,18 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    alignSelf: 'flex-start',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: radius.pill,
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  text: { fontFamily: font.bodySemi, fontSize: 11, letterSpacing: 0.4 },
+  badgeLg: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 6,
+  },
+  text: { fontFamily: font.bodySemi, fontSize: 12, letterSpacing: 0.4 },
+  textLg: { fontSize: 13, letterSpacing: 0.5 },
 });

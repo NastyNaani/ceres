@@ -363,8 +363,8 @@ export default function ScanScreen() {
         <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.void }]} />
       )}
       <LinearGradient
-        colors={['rgba(4,4,5,0.72)', 'transparent', 'rgba(4,4,5,0.85)']}
-        locations={[0, 0.35, 1]}
+        colors={['rgba(4,4,5,0.55)', 'transparent', 'rgba(4,4,5,0.7)']}
+        locations={[0, 0.32, 1]}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
@@ -393,75 +393,82 @@ export default function ScanScreen() {
       </View>
 
       <View style={styles.frameWrap} pointerEvents="none">
-        <View style={[styles.frame, { width: FRAME, height: FRAME }]}>
-          {!product && !loading && !reduced && !manualOpen ? (
-            <Animated.View
-              style={[
-                styles.pulseRing,
-                {
-                  opacity: pulseOpacity,
-                  transform: [{ scale: pulseScale }],
-                },
-              ]}
-            />
-          ) : null}
-          <View style={styles.frameGrid} pointerEvents="none">
-            <View style={[styles.gridLine, styles.gridH, { top: '33%' }]} />
-            <View style={[styles.gridLine, styles.gridH, { top: '66%' }]} />
-            <View style={[styles.gridLine, styles.gridV, { left: '33%' }]} />
-            <View style={[styles.gridLine, styles.gridV, { left: '66%' }]} />
-          </View>
-          <Animated.View style={[styles.corner, styles.tl, { opacity: cornerOpacity }]} />
-          <Animated.View style={[styles.corner, styles.tr, { opacity: cornerOpacity }]} />
-          <Animated.View style={[styles.corner, styles.bl, { opacity: cornerOpacity }]} />
-          <Animated.View style={[styles.corner, styles.br, { opacity: cornerOpacity }]} />
-          {!product && !loading && !reduced && !manualOpen ? (
-            <>
+        <View style={styles.dimTop} />
+        <View style={styles.dimMid}>
+          <View style={styles.dimSide} />
+          <View style={[styles.frame, { width: FRAME, height: FRAME }]}>
+            {!product && !loading && !reduced && !manualOpen ? (
               <Animated.View
                 style={[
-                  styles.beamTrail,
-                  { opacity: trailOpacity, transform: [{ translateY: beamY }] },
+                  styles.pulseRing,
+                  {
+                    opacity: pulseOpacity,
+                    transform: [{ scale: pulseScale }],
+                  },
                 ]}
-              >
-                <LinearGradient
-                  colors={[
-                    'transparent',
-                    'rgba(214,217,223,0.08)',
-                    'rgba(214,217,223,0.28)',
-                    'rgba(255,255,255,0.55)',
-                    'rgba(214,217,223,0.28)',
-                    'rgba(214,217,223,0.08)',
-                    'transparent',
+              />
+            ) : null}
+            <View style={styles.frameGrid} pointerEvents="none">
+              <View style={[styles.gridLine, styles.gridH, { top: '33%' }]} />
+              <View style={[styles.gridLine, styles.gridH, { top: '66%' }]} />
+              <View style={[styles.gridLine, styles.gridV, { left: '33%' }]} />
+              <View style={[styles.gridLine, styles.gridV, { left: '66%' }]} />
+            </View>
+            <Animated.View style={[styles.corner, styles.tl, { opacity: cornerOpacity }]} />
+            <Animated.View style={[styles.corner, styles.tr, { opacity: cornerOpacity }]} />
+            <Animated.View style={[styles.corner, styles.bl, { opacity: cornerOpacity }]} />
+            <Animated.View style={[styles.corner, styles.br, { opacity: cornerOpacity }]} />
+            {!product && !loading && !reduced && !manualOpen ? (
+              <>
+                <Animated.View
+                  style={[
+                    styles.beamTrail,
+                    { opacity: trailOpacity, transform: [{ translateY: beamY }] },
                   ]}
-                  locations={[0, 0.18, 0.38, 0.5, 0.62, 0.82, 1]}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </Animated.View>
-              <Animated.View
-                style={[
-                  styles.beamCoreWrap,
-                  { opacity: beamOpacity, transform: [{ translateY: beamY }] },
-                ]}
-              >
-                <LinearGradient
-                  colors={['transparent', colors.silverBright, 'transparent']}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.beamCore}
-                />
-              </Animated.View>
-            </>
-          ) : null}
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.lockFlash, { opacity: lockFlash }]}
-          />
+                >
+                  <LinearGradient
+                    colors={[
+                      'transparent',
+                      'rgba(214,217,223,0.08)',
+                      'rgba(214,217,223,0.28)',
+                      'rgba(255,255,255,0.55)',
+                      'rgba(214,217,223,0.28)',
+                      'rgba(214,217,223,0.08)',
+                      'transparent',
+                    ]}
+                    locations={[0, 0.18, 0.38, 0.5, 0.62, 0.82, 1]}
+                    start={{ x: 0.5, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </Animated.View>
+                <Animated.View
+                  style={[
+                    styles.beamCoreWrap,
+                    { opacity: beamOpacity, transform: [{ translateY: beamY }] },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['transparent', colors.silverBright, 'transparent']}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={styles.beamCore}
+                  />
+                </Animated.View>
+              </>
+            ) : null}
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.lockFlash, { opacity: lockFlash }]}
+            />
+          </View>
+          <View style={styles.dimSide} />
         </View>
-        <Text style={styles.hint}>
-          {loading ? 'Reading label…' : 'Align a food barcode inside the frame'}
-        </Text>
+        <View style={styles.dimBottom}>
+          <Text style={styles.hint}>
+            {loading ? 'Reading label…' : 'Align a food barcode inside the frame'}
+          </Text>
+        </View>
       </View>
 
       {banner ? (
@@ -602,13 +609,37 @@ const styles = StyleSheet.create({
   },
   frameWrap: {
     ...StyleSheet.absoluteFill,
+  },
+  dimTop: {
+    flex: 1,
+    backgroundColor: 'rgba(4,4,5,0.58)',
+  },
+  dimMid: {
+    flexDirection: 'row',
+    height: FRAME,
+  },
+  dimSide: {
+    flex: 1,
+    backgroundColor: 'rgba(4,4,5,0.58)',
+  },
+  dimBottom: {
+    flex: 1,
+    backgroundColor: 'rgba(4,4,5,0.62)',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 18,
+    paddingTop: 18,
   },
   frame: {
     borderRadius: 8,
     overflow: 'hidden',
+  },
+  hint: {
+    fontFamily: font.body,
+    fontSize: 13,
+    color: colors.silverMid,
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   pulseRing: {
     ...StyleSheet.absoluteFill,
@@ -668,12 +699,6 @@ const styles = StyleSheet.create({
   lockFlash: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(214,218,224,0.22)',
-  },
-  hint: {
-    fontFamily: font.body,
-    fontSize: 13,
-    color: colors.textSecondary,
-    letterSpacing: 0.3,
   },
   banner: {
     position: 'absolute',
