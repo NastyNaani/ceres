@@ -67,6 +67,8 @@ export function ProductResultSheet({
   const meta = product ? scoreMeta(product.verdict, product.rating) : null;
   const dragY = useRef(new Animated.Value(SHEET_H)).current;
   const scrimOp = useRef(new Animated.Value(0)).current;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const prompt = useMemo(() => {
     if (!product) return '';
@@ -109,9 +111,12 @@ export function ProductResultSheet({
     ]).start();
   }, [open, dragY, scrimOp, reduced]);
 
-  const dismiss = (velocity = 0) => {
-    if (reduced) {
-      onClose();
+  // Keep dismiss.reduced in sync without rebuilding PanResponder
+  const reducedRef = useRef(reduced);
+  reducedRef.current = reduced;
+  const dismissFn = (velocity = 0) => {
+    if (reducedRef.current) {
+      onCloseRef.current();
       return;
     }
     Animated.parallel([
@@ -127,9 +132,12 @@ export function ProductResultSheet({
         useNativeDriver: true,
       }),
     ]).start(({ finished }) => {
-      if (finished) onClose();
+      if (finished) onCloseRef.current();
     });
   };
+  const dismissRef = useRef(dismissFn);
+  dismissRef.current = dismissFn;
+  const dismiss = (velocity = 0) => dismissRef.current(velocity);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -140,7 +148,7 @@ export function ProductResultSheet({
       },
       onPanResponderRelease: (_, g) => {
         if (g.dy > DISMISS_Y || g.vy > 1.1) {
-          dismiss(g.vy);
+          dismissRef.current(g.vy);
         } else {
           Animated.spring(dragY, {
             toValue: 0,
