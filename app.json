@@ -1,0 +1,114 @@
+{
+  "expo": {
+    "name": "Ceres",
+    "slug": "ceres",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "ceres",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#060708",
+    "ios": {
+      "supportsTablet": true,
+      "userInterfaceStyle": "dark",
+      "bundleIdentifier": "io.github.nastynaani.ceres",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Ceres uses the camera to scan product barcodes.",
+        "NSPhotoLibraryUsageDescription": "Ceres reads images you pick so it can scan barcodes inside them."
+      }
+    },
+    "android": {
+      "userInterfaceStyle": "dark",
+      "package": "io.github.nastynaani.ceres",
+      "adaptiveIcon": {
+        "backgroundColor": "#060708",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Ceres uses the camera to scan product barcodes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ceres reads images you pick so it can scan barcodes inside them."
+        }
+      ],
+      "expo-font",
+      [
+        "expo-sharing",
+        {
+          "ios": {
+            "enabled": true,
+            "activationRule": {
+              "supportsText": true,
+              "supportsWebUrlWithMaxCount": 1
+            }
+          },
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": ["text/plain"]
+          }
+        }
+      ],
+      "expo-document-picker",
+      "expo-audio",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#060708",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#060708"
+          }
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ],
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {}
+    }
+  }
+}
