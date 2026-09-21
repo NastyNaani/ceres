@@ -1,28 +1,28 @@
-# Ceres privacy policy
+﻿# Ceres privacy policy
 
-**Last updated:** 2026-09-20
+**Last updated:** 22 September 2026
 
-Ceres is a food barcode scanner. It is designed to keep personal data on your device.
+Public URL (Play Store): https://nastynaani.github.io/ceres/
 
-## What we collect
+Ceres is a food barcode scanner. It keeps personal data on your device and does not require an account.
 
-Ceres does not require an account and does not include advertising or analytics SDKs in the current build.
-
-### On your device
+## On your device
 
 - Product history (barcode, name, score snapshot, favorites, optional notes)
-- App settings
+- App settings (including allergen watch)
 
-### Third parties you trigger
+## Camera
 
-When you scan or reopen a product, Ceres sends the **barcode number** to:
+The camera is used only to decode barcodes. Image frames are not uploaded.
 
-- **Open Food Facts** (`openfoodfacts.org`) to retrieve product name, brand, Nutri-Score, NOVA group, additives, ingredients, allergens, and related fields.
+## Open Food Facts
 
-See [Open Food Facts privacy](https://world.openfoodfacts.org/privacy).
+When you scan or reopen a product, the barcode number is sent to Open Food Facts (openfoodfacts.org) to retrieve product details. See [Open Food Facts privacy](https://world.openfoodfacts.org/privacy).
 
-The camera is used only to decode barcodes; image frames are not uploaded.
+## Ads and analytics
+
+This build does not include advertising or analytics SDKs.
 
 ## Contact
 
-Replace this section with your support email before store release.
+kyralewis6@gmail.com · [GitHub issues](https://github.com/NastyNaani/ceres/issues)
