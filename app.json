@@ -20,7 +20,6 @@
     "android": {
       "userInterfaceStyle": "dark",
       "package": "io.github.nastynaani.ceres",
-      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#060708",
         "foregroundImage": "./assets/android-icon-foreground.png",
