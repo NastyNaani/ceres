@@ -20,6 +20,7 @@
     "android": {
       "userInterfaceStyle": "dark",
       "package": "io.github.nastynaani.ceres",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#060708",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -30,7 +31,11 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        "android.permission.READ_MEDIA_IMAGES"
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
@@ -74,7 +79,9 @@
           },
           "android": {
             "enabled": true,
-            "singleShareMimeTypes": ["text/plain"]
+            "singleShareMimeTypes": [
+              "text/plain"
+            ]
           }
         }
       ],
@@ -108,7 +115,28 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
-    }
+      "router": {},
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "expo-sharing-extension",
+                  "bundleIdentifier": "io.github.nastynaani.ceres.expo-sharing-extension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.io.github.nastynaani.ceres"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "b4edecb7-d877-472c-8d83-202397fd8f9f"
+      }
+    },
+    "owner": "kyralewis"
   }
 }
