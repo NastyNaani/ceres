@@ -1,12 +1,14 @@
 /**
- * Open Food Facts product lookup + transparent score.
- * Grades combine Nutri-Score, NOVA, additives, and a local ingredient read —
- * not a black-box AI score.
+ * Product lookup + transparent score.
+ * Primary: Open Food Facts (Nutri-Score, NOVA, additives).
+ * Fallback: USDA FoodData Central when OFF misses or returns sparse data.
+ * Grades combine those signals with a local ingredient read — not a black-box AI score.
  */
 
 import { analyzeIngredients, type IngredientAnalysis } from './ingredients';
 import { buildProductFlags, countIngredients, detectAddedSugar, type ProductFlag } from './flags';
 import { emptyNutrition, parseNutrition, type NutritionFacts } from './nutrition';
+import { lookupUsdaBarcode } from './usda';
 
 export type Verdict =
   | 'elite'
@@ -35,13 +37,17 @@ export type FoodProduct = {
   hasAddedSugar: boolean;
   addedSugarSources: string[];
   allergens: string[];
+  /** Human-readable category labels (e.g. "chocolate cookies"). */
   categories: string[];
+  /** Raw Open Food Facts category tags (e.g. "en:chocolate-cookies") for search. */
+  categoryTags: string[];
   verdict: Verdict;
   /** Composite shelf score used internally. */
   score: number;
   /**
    * Fun overall rating out of 10.
-   * Elite can hit 11; abysmal/worst can go negative. Null when unknown.
+   * Scale: −1, then 1…11 (no zero). Elite can hit 11; floor is a soft −1.
+   * Null when unknown.
    */
   rating: number | null;
   reasons: string[];
@@ -108,6 +114,14 @@ function cleanTags(tags: unknown, prefix: string): string[] {
     .map((t) => t.replace(new RegExp(`^${prefix}:`, 'i'), '').replace(/-/g, ' '))
     .filter(Boolean)
     .slice(0, 24);
+}
+
+/** Keep taxonomy tags like `en:chocolate-cookies` for API filters. */
+function rawCategoryTags(tags: unknown): string[] {
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .filter((t): t is string => typeof t === 'string' && t.includes(':'))
+    .slice(0, 12);
 }
 
 function hashSeed(input: string): number {
@@ -210,7 +224,7 @@ export function scoreProduct(input: {
 
 /**
  * Map composite score → flashy /10 rating.
- * Elite: 11/10. Abysmal: always negative. Worst: 0 or below.
+ * Scale: −1, then 1…11 (skips 0). Elite: 11/10. Floor: soft −1 only.
  */
 export function overallRating(score: number, verdict: Verdict): number | null {
   if (verdict === 'unknown') return null;
@@ -222,10 +236,10 @@ export function overallRating(score: number, verdict: Verdict): number | null {
   if (verdict === 'excellent') return Math.max(9, Math.min(10, rating));
   if (verdict === 'good') return Math.max(7, Math.min(8, rating));
   if (verdict === 'ok') return Math.max(5, Math.min(6, rating));
-  if (verdict === 'poor') return Math.max(2, Math.min(4, rating));
-  if (verdict === 'worst') return Math.min(0, Math.max(-4, rating));
-  // abysmal — always a punchline negative
-  return Math.min(-1, Math.max(-10, rating <= 0 ? rating : -Math.abs(rating) - 1));
+  if (verdict === 'poor') return Math.max(3, Math.min(4, rating));
+  if (verdict === 'worst') return Math.max(1, Math.min(2, rating === 0 ? 1 : rating));
+  // abysmal — single soft floor, no deep negatives
+  return -1;
 }
 
 export function formatRating(rating: number | null): string {
@@ -233,102 +247,8 @@ export function formatRating(rating: number | null): string {
   return `${rating}/10`;
 }
 
-/** Punchline labels for 0 and the −1…−10 band so every score sounds distinct. */
-const NEGATIVE_LABELS: Record<number, string> = {
-  0: 'Bleak',
-  [-1]: 'Rough',
-  [-2]: 'Dismal',
-  [-3]: 'Grim',
-  [-4]: 'Rotten',
-  [-5]: 'Abysmal',
-  [-6]: 'Appalling',
-  [-7]: 'Catastrophic',
-  [-8]: 'Toxic',
-  [-9]: 'Cursed',
-  [-10]: 'Nuclear',
-};
-
-const NEGATIVE_PROMPTS: Record<number, string[]> = {
-  0: [
-    'Zero out of ten. The barcode filed for emotional damages.',
-    'Not quite negative yet — still a hard pass at the shelf.',
-    'This is the culinary equivalent of a participation trophy… that failed.',
-  ],
-  [-1]: [
-    'Barely below zero. The aisle just whispered “maybe not.”',
-    'A soft no. Soft like margarine pretending to be butter.',
-    'Your cart can do one better. Or twelve.',
-  ],
-  [-2]: [
-    'Dismal vibes only. Put it back before it multiplies.',
-    'Two steps into the red and already looking guilty.',
-    'I’d rather invent dinner from spices and optimism.',
-  ],
-  [-3]: [
-    'Grim reading. Even the nutrition panel looks tired.',
-    'Three below. Your mitochondria just updated their will.',
-    'This is how pantry regret starts — slowly, then all at once.',
-  ],
-  [-4]: [
-    'Rotten score, shiny packaging. Classic bait-and-switch.',
-    'Four in the hole. The freezer shelf wants nothing to do with this.',
-    'If “meh” had a darker cousin, you just met it.',
-  ],
-  [-5]: [
-    'Abysmal. Walk away like the building is on fire.',
-    'Halfway to nuclear and somehow still in a grocery store.',
-    'Congratulations, you found the middle of the bad barrel.',
-  ],
-  [-6]: [
-    'Appalling. I’d rather chew the receipt.',
-    'Six below zero — the snack aisle equivalent of a red flag parade.',
-    'This product peaked in a lab meeting, not a kitchen.',
-  ],
-  [-7]: [
-    'Catastrophic. Leave the aisle. Consider leaving the store.',
-    'Seven deep. Your future self is already annoyed.',
-    'If regret had a barcode, it would scan like this.',
-  ],
-  [-8]: [
-    'Toxic energy, edible format. Hard no from Ceres.',
-    'Eight below. Even the barcode looks like it needs a lawyer.',
-    'This is what happens when a snack hates you personally.',
-  ],
-  [-9]: [
-    'Cursed. I’d rather lick the freezer shelf.',
-    'Nine in the red. Your cart deserves a restraining order.',
-    'Not food — a cry for help in a colorful wrapper.',
-  ],
-  [-10]: [
-    'Nuclear. Absolute bottom. Do not engage.',
-    'Negative ten. The rating went into debt and took out a loan.',
-    'This isn’t a product. It’s a cautionary tale with a lid.',
-  ],
-};
-
-const NEGATIVE_HINTS: Record<number, string> = {
-  0: 'Borderline collapse — processing and nutrition already look rough.',
-  [-1]: 'Slightly underwater. Weak score with a few concern signals.',
-  [-2]: 'Clearly in the red — processing and/or ingredients drag it down.',
-  [-3]: 'Heavy flags stacking: score, processing, or concern ingredients.',
-  [-4]: 'Multiple weak signals. Better options almost certainly exist.',
-  [-5]: 'Deep in the red across score, processing, and ingredients.',
-  [-6]: 'A harsh combo of ultra-processing and concern ingredients.',
-  [-7]: 'Near-floor score — red flags dominate the label read.',
-  [-8]: 'Extremely weak profile. Treat as a last-resort snack at best.',
-  [-9]: 'Almost the bottom. Hard to justify putting this in a cart.',
-  [-10]: 'Floor score. Multiple red flags with almost nothing redeeming.',
-};
-
-function clampNegativeRating(rating: number): number {
-  return Math.max(-10, Math.min(0, Math.round(rating)));
-}
-
 export function verdictLabel(v: Verdict, rating?: number | null): string {
-  if (typeof rating === 'number' && rating <= 0) {
-    const key = clampNegativeRating(rating);
-    return NEGATIVE_LABELS[key] ?? (v === 'worst' ? 'Worst' : 'Abysmal');
-  }
+  if (typeof rating === 'number' && rating < 0) return 'Rough';
   switch (v) {
     case 'elite':
       return 'Elite';
@@ -339,11 +259,11 @@ export function verdictLabel(v: Verdict, rating?: number | null): string {
     case 'ok':
       return 'Okay';
     case 'poor':
-      return 'Poor';
+      return 'Weak';
     case 'worst':
-      return 'Worst';
+      return 'Skip';
     case 'abysmal':
-      return 'Abysmal';
+      return 'Rough';
     default:
       return 'Unknown';
   }
@@ -380,38 +300,30 @@ const PROMPTS: Record<Exclude<Verdict, 'unknown'>, string[]> = {
     'Meh with a barcode. Take it or leave it.',
   ],
   poor: [
-    'I wouldn’t feed that to my dog. And my dog has low standards.',
-    'Your cart deserves better company than this.',
-    'Technically edible. Spiritually questionable.',
-    'Put it back. Future-you is already annoyed.',
-    'This product called. It wants you to have lower standards.',
-    'If regret had a flavor, it would taste like this.',
+    'Not your strongest pick — a better swap is probably nearby.',
+    'A bit weak on the label. Worth a second look at the shelf.',
+    'Okay as an occasional treat, not a daily staple.',
+    'You can do a little better without trying hard.',
+    'Fine in a pinch. Not what I’d reach for first.',
   ],
   worst: [
-    'This isn’t food — it’s a chemistry set with branding.',
-    'I’d rather chew the receipt.',
-    'Hard pass. Even the barcode looks guilty.',
-    'If your pantry could talk, it would file a restraining order.',
-    'Your mitochondria just requested a transfer.',
-    'This belongs in a museum of bad decisions.',
+    'I’d skip this one if there’s an easy alternative.',
+    'Heavy on the processing — check for a simpler option.',
+    'Not a great everyday pick. Save it for rare cravings.',
+    'The label’s doing a lot. Your cart can aim higher.',
+    'Pass for now — better options usually sit one shelf over.',
   ],
   abysmal: [
-    'Absolutely not. Walk away like the building is on fire.',
-    'This product peaked in a lab, not a kitchen.',
-    'Congratulations, you found the bottom of the barrel.',
-    'Leave it. Then leave the aisle. Then maybe the store.',
-    'Negative stars. The rating went into debt for this one.',
-    'I’d rather lick the freezer shelf.',
-    'This is what happens when a snack hates you personally.',
-    'Not food. A cry for help in a colorful wrapper.',
+    'Rough score. A softer pass unless you really want it.',
+    'Not a great match for everyday eating — swap if you can.',
+    'The aisle whispered “maybe not.” Listen if you want.',
+    'Hard to recommend. Treat-only territory.',
+    'A soft no from Ceres — your call at the checkout.',
   ],
 };
 
 /** Short factual hint under the verdict title. */
-export function verdictHint(v: Verdict, rating?: number | null): string {
-  if (typeof rating === 'number' && rating <= 0) {
-    return NEGATIVE_HINTS[clampNegativeRating(rating)] ?? NEGATIVE_HINTS[-5]!;
-  }
+export function verdictHint(v: Verdict, _rating?: number | null): string {
   switch (v) {
     case 'elite':
       return 'Top-tier Nutri-Score, light processing, and a clean ingredient read.';
@@ -422,28 +334,24 @@ export function verdictHint(v: Verdict, rating?: number | null): string {
     case 'ok':
       return 'Mixed signals — fine in moderation, better options may exist.';
     case 'poor':
-      return 'Weaker nutrition and/or heavy processing. Check the label.';
+      return 'Weaker nutrition and/or heavier processing. A swap may feel better.';
     case 'worst':
-      return 'Heavy processing and concern ingredients stack up fast.';
+      return 'Processing and concern ingredients stack up — better picks are likely nearby.';
     case 'abysmal':
-      return 'Multiple red flags across score, processing, and ingredients.';
+      return 'Multiple weak signals across score, processing, and ingredients.';
     default:
-      return 'Ceres could not grade this barcode from Open Food Facts.';
+      return 'Ceres could not grade this barcode from available product data.';
   }
 }
 
 /** Fun, deterministic one-liner for the verdict card. */
-export function verdictPrompt(v: Verdict, seed = 'ceres', rating?: number | null): string {
+export function verdictPrompt(v: Verdict, seed = 'ceres', _rating?: number | null): string {
   if (v === 'unknown') {
     return pickPrompt(seed, [
-      'Ghost product — Open Food Facts shrugged.',
+      'Ghost product — no solid match in our databases yet.',
       'No grade yet. The barcode knows something we don’t.',
-      'Data’s out to lunch. Try another scan.',
+      'Data’s out to lunch. Try another scan in a moment.',
     ]);
-  }
-  if (typeof rating === 'number' && rating <= 0) {
-    const key = clampNegativeRating(rating);
-    return pickPrompt(`${seed}:${key}`, NEGATIVE_PROMPTS[key] ?? PROMPTS.abysmal);
   }
   return pickPrompt(seed, PROMPTS[v]);
 }
@@ -488,12 +396,13 @@ function emptyProduct(barcode: string, found: boolean): FoodProduct {
     addedSugarSources: [],
     allergens: [],
     categories: [],
+    categoryTags: [],
     verdict: 'unknown',
     score: 0,
     rating: null,
     reasons: found
       ? ['Product exists but has little scoring data.']
-      : ['No match in Open Food Facts for this barcode.'],
+      : ['No match in Open Food Facts or USDA for this barcode.'],
     flags: [],
     ingredientAnalysis: EMPTY_ANALYSIS,
     nutrition: emptyNutrition(),
@@ -501,12 +410,115 @@ function emptyProduct(barcode: string, found: boolean): FoodProduct {
   };
 }
 
-export async function lookupFood(barcode: string, timeoutMs = 6000): Promise<FoodProduct> {
-  const code = barcode.trim();
-  if (!code) return emptyProduct(barcode, false);
+function macroSignalFromNutrition(nutrition: NutritionFacts): number {
+  if (!nutrition.available) return 0;
+  let macroSignal = 0;
+  for (const row of nutrition.rows) {
+    if (row.flag === 'high') macroSignal -= 0.6;
+    else if (row.flag === 'elevated') macroSignal -= 0.25;
+    else if (row.flag === 'good') macroSignal += 0.35;
+  }
+  if (nutrition.hasProtein && (nutrition.proteinGrams ?? 0) >= 10) {
+    macroSignal += 0.15;
+  }
+  return Math.max(-2, Math.min(1.5, macroSignal));
+}
 
+function appendScoreDetails(
+  reasons: string[],
+  input: {
+    nutrition: NutritionFacts;
+    sugarHit: { present: boolean; sources: string[] };
+    ingredientCount: number;
+    nova: 1 | 2 | 3 | 4 | null;
+  }
+) {
+  if (input.nutrition.hasProtein && input.nutrition.proteinGrams != null) {
+    reasons.push(
+      `Protein ${input.nutrition.proteinGrams >= 10 ? 'present' : 'detected'} — ${input.nutrition.proteinGrams.toFixed(1)} g / 100 g`
+    );
+  }
+  if (input.nutrition.overLimitCount > 0) {
+    reasons.push(
+      `${input.nutrition.overLimitCount} macro${input.nutrition.overLimitCount === 1 ? '' : 's'} above preferred limits`
+    );
+  }
+  if (input.sugarHit.present) {
+    reasons.push(
+      input.sugarHit.sources.length
+        ? `Added sugar on the label (${input.sugarHit.sources.slice(0, 2).join(', ')})`
+        : 'Added sugar flagged on the label'
+    );
+  }
+  if (input.ingredientCount >= 15) {
+    reasons.push(`${input.ingredientCount} ingredients listed — long label`);
+  } else if (input.ingredientCount > 0 && input.ingredientCount <= 5) {
+    reasons.push(`Short label — ${input.ingredientCount} ingredients`);
+  }
+  if (input.nova === 4 && !reasons.some((r) => /NOVA 4/i.test(r))) {
+    reasons.push('NOVA 4 — ultra-processed');
+  }
+}
+
+function productFromUsda(code: string, hit: Awaited<ReturnType<typeof lookupUsdaBarcode>>): FoodProduct | null {
+  if (!hit) return null;
+
+  const ingredients = hit.ingredients;
+  const nutrition = parseNutrition(hit.nutriments);
+  const ingredientAnalysis = analyzeIngredients(ingredients, []);
+  const sugarHit = detectAddedSugar(ingredients, []);
+  const ingredientCount = countIngredients(ingredients);
+  const categories = hit.category ? [hit.category] : [];
+
+  const { verdict, reasons, score } = scoreProduct({
+    nutriscore: null,
+    nova: null,
+    additivesCount: null,
+    ingredientSignal: ingredientAnalysis.signal,
+    badIngredientCount: ingredientAnalysis.bad.length,
+    macroSignal: macroSignalFromNutrition(nutrition),
+  });
+
+  reasons.unshift('Matched via USDA FoodData Central (Open Food Facts had no usable hit).');
+  appendScoreDetails(reasons, { nutrition, sugarHit, ingredientCount, nova: null });
+
+  const rating = overallRating(score, verdict);
+  const product: FoodProduct = {
+    barcode: code,
+    name: hit.name,
+    brand: hit.brand,
+    imageUrl: null,
+    nutriscore: null,
+    nova: null,
+    additivesCount: null,
+    additives: [],
+    ingredients,
+    ingredientCount,
+    hasAddedSugar: sugarHit.present,
+    addedSugarSources: sugarHit.sources,
+    allergens: [],
+    categories,
+    categoryTags: [],
+    verdict,
+    score,
+    rating,
+    reasons,
+    flags: [],
+    ingredientAnalysis,
+    nutrition,
+    found: true,
+  };
+  product.flags = buildProductFlags(product);
+  return product;
+}
+
+type OffLookup =
+  | { ok: true; product: FoodProduct }
+  | { ok: false; kind: 'not_found' | 'network' };
+
+async function lookupOpenFoodFacts(code: string, timeoutMs: number): Promise<OffLookup> {
   try {
-    return await withTimeout(timeoutMs, async (signal) => {
+    const product = await withTimeout(timeoutMs, async (signal) => {
       const res = await fetch(
         `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=${FIELDS}`,
         {
@@ -519,7 +531,7 @@ export async function lookupFood(barcode: string, timeoutMs = 6000): Promise<Foo
       );
       const json = await res.json();
       if (json?.status !== 1 || !json.product) {
-        return emptyProduct(code, false);
+        return null;
       }
 
       const p = json.product;
@@ -542,6 +554,7 @@ export async function lookupFood(barcode: string, timeoutMs = 6000): Promise<Foo
           ? p.ingredients_text.trim()
           : null;
       const allergens = cleanTags(p.allergens_tags, 'en');
+      const categoryTags = rawCategoryTags(p.categories_tags);
       const categories = cleanTags(p.categories_tags, 'en').slice(0, 6);
       const nutrition = parseNutrition(p.nutriments);
       const ingredientAnalysis = analyzeIngredients(ingredients, additives);
@@ -553,62 +566,19 @@ export async function lookupFood(barcode: string, timeoutMs = 6000): Promise<Foo
         typeof p.ingredients_n === 'number' && p.ingredients_n > 0 ? p.ingredients_n : 0;
       const ingredientCount = Math.max(fromApiCount, countIngredients(ingredients));
 
-      let macroSignal = 0;
-      if (nutrition.available) {
-        for (const row of nutrition.rows) {
-          if (row.flag === 'high') macroSignal -= 0.6;
-          else if (row.flag === 'elevated') macroSignal -= 0.25;
-          else if (row.flag === 'good') macroSignal += 0.35;
-        }
-        if (nutrition.hasProtein && (nutrition.proteinGrams ?? 0) >= 10) {
-          // Already counted via good flag; tiny extra nudge for clear protein.
-          macroSignal += 0.15;
-        }
-        macroSignal = Math.max(-2, Math.min(1.5, macroSignal));
-      }
-
       const { verdict, reasons, score } = scoreProduct({
         nutriscore,
         nova,
         additivesCount,
         ingredientSignal: ingredientAnalysis.signal,
         badIngredientCount: ingredientAnalysis.bad.length,
-        macroSignal,
+        macroSignal: macroSignalFromNutrition(nutrition),
       });
 
-      if (nutrition.hasProtein && nutrition.proteinGrams != null) {
-        reasons.push(
-          `Protein ${nutrition.proteinGrams >= 10 ? 'present' : 'detected'} — ${nutrition.proteinGrams.toFixed(1)} g / 100 g`
-        );
-      }
-      if (nutrition.overLimitCount > 0) {
-        reasons.push(
-          `${nutrition.overLimitCount} macro${nutrition.overLimitCount === 1 ? '' : 's'} above preferred limits`
-        );
-      }
-
+      appendScoreDetails(reasons, { nutrition, sugarHit, ingredientCount, nova });
       const rating = overallRating(score, verdict);
 
-      if (sugarHit.present) {
-        reasons.push(
-          sugarHit.sources.length
-            ? `Added sugar on the label (${sugarHit.sources.slice(0, 2).join(', ')})`
-            : 'Added sugar flagged on the label'
-        );
-      }
-      if (ingredientCount >= 15) {
-        reasons.push(`${ingredientCount} ingredients listed — long label`);
-      } else if (ingredientCount > 0 && ingredientCount <= 5) {
-        reasons.push(`Short label — ${ingredientCount} ingredients`);
-      }
-      if (nova === 4) {
-        // Ensure UPF always surfaces in the why list even if NOVA reason already exists.
-        if (!reasons.some((r) => /NOVA 4/i.test(r))) {
-          reasons.push('NOVA 4 — ultra-processed');
-        }
-      }
-
-      const product: FoodProduct = {
+      const built: FoodProduct = {
         barcode: code,
         name,
         brand,
@@ -623,6 +593,7 @@ export async function lookupFood(barcode: string, timeoutMs = 6000): Promise<Foo
         addedSugarSources: sugarHit.sources,
         allergens,
         categories,
+        categoryTags,
         verdict,
         score,
         rating,
@@ -632,14 +603,300 @@ export async function lookupFood(barcode: string, timeoutMs = 6000): Promise<Foo
         nutrition,
         found: true,
       };
-      product.flags = buildProductFlags(product);
-      return product;
+      built.flags = buildProductFlags(built);
+      return built;
     });
+
+    if (!product) return { ok: false, kind: 'not_found' };
+    return { ok: true, product };
   } catch {
+    return { ok: false, kind: 'network' };
+  }
+}
+
+function needsUsdaFallback(result: OffLookup): boolean {
+  if (!result.ok) return true;
+  // Sparse OFF hit — try USDA for nutrition/ingredients before giving up.
+  return result.product.verdict === 'unknown';
+}
+
+export async function lookupFood(barcode: string, timeoutMs = 8000): Promise<FoodProduct> {
+  const code = barcode.trim();
+  if (!code) return emptyProduct(barcode, false);
+
+  let off = await lookupOpenFoodFacts(code, timeoutMs);
+
+  // First-scan flakiness is often a timeout/abort — retry OFF once.
+  if (!off.ok && off.kind === 'network') {
+    off = await lookupOpenFoodFacts(code, timeoutMs);
+  }
+
+  if (off.ok && !needsUsdaFallback(off)) {
+    return off.product;
+  }
+
+  const usda = productFromUsda(code, await lookupUsdaBarcode(code, timeoutMs));
+  if (usda) return usda;
+
+  if (off.ok) return off.product;
+
+  if (off.kind === 'network') {
     return {
       ...emptyProduct(code, false),
       name: 'Lookup failed',
-      reasons: ['Could not reach Open Food Facts. Check your connection and try again.'],
+      reasons: ['Could not reach product databases. Check your connection and try again.'],
+    };
+  }
+
+  return emptyProduct(code, false);
+}
+
+export type AlternativeProduct = {
+  barcode: string;
+  name: string;
+  brand: string | null;
+  imageUrl: string | null;
+  nutriscore: NutriGrade | null;
+  nova: 1 | 2 | 3 | 4 | null;
+  verdict: Verdict;
+  rating: number | null;
+  score: number;
+};
+
+const ALT_FIELDS = [
+  'code',
+  'product_name',
+  'brands',
+  'image_front_small_url',
+  'image_url',
+  'nutriscore_grade',
+  'nova_group',
+  'additives_n',
+].join(',');
+
+function nutriRank(g: NutriGrade | null): number {
+  if (!g) return 3;
+  return { a: 0, b: 1, c: 2, d: 3, e: 4 }[g];
+}
+
+function isHealthierThan(candidate: AlternativeProduct, baseline: FoodProduct): boolean {
+  if (baseline.rating != null && candidate.rating != null && candidate.rating > baseline.rating) {
+    return true;
+  }
+  if (candidate.score > baseline.score) return true;
+  // Nutri-Score alone (A better than E) — search hits lack full ingredient/macro signals.
+  if (
+    candidate.nutriscore &&
+    baseline.nutriscore &&
+    nutriRank(candidate.nutriscore) < nutriRank(baseline.nutriscore)
+  ) {
+    return true;
+  }
+  if (baseline.nova === 4 && candidate.nova != null && candidate.nova <= 2) return true;
+  return false;
+}
+
+function categoryDepth(tag: string): number {
+  return tag
+    .replace(/^[^:]+:/i, '')
+    .split('-')
+    .filter(Boolean).length;
+}
+
+/**
+ * Prefer mid-level categories (e.g. en:crackers) over ultra-specific leaves
+ * like en:salty-snacks-crackers-garnished-with-cheese, which rarely have healthier peers.
+ */
+function pickCategoryCandidates(tags: string[]): string[] {
+  const en = tags.filter((t) => /^en:/i.test(t));
+  const pool = en.length ? en : tags;
+  const ranked = pool.map((t) => {
+    const depth = categoryDepth(t);
+    let rank = 0;
+    if (depth >= 2 && depth <= 3) rank = 100 - depth;
+    else if (depth === 4) rank = 55;
+    else if (depth === 1) rank = 25;
+    else rank = 15;
+    return { t, rank, depth };
+  });
+  ranked.sort((a, b) => b.rank - a.rank || a.depth - b.depth);
+  const out: string[] = [];
+  for (const row of ranked) {
+    if (!out.includes(row.t)) out.push(row.t);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
+function scoreSearchHit(raw: Record<string, unknown>): AlternativeProduct | null {
+  const code =
+    (typeof raw.code === 'string' && raw.code) ||
+    (typeof raw._id === 'string' && raw._id) ||
+    '';
+  if (!code) return null;
+
+  const name =
+    (typeof raw.product_name === 'string' && raw.product_name.trim()) ||
+    (typeof raw.brands === 'string' && raw.brands.trim()) ||
+    'Unknown product';
+  const brand =
+    typeof raw.brands === 'string' ? raw.brands.split(',')[0]?.trim() || null : null;
+  const imageUrl =
+    (typeof raw.image_front_small_url === 'string' && raw.image_front_small_url) ||
+    (typeof raw.image_url === 'string' && raw.image_url) ||
+    null;
+  const nutriscore = parseNutri(raw.nutriscore_grade);
+  const nova = parseNova(raw.nova_group);
+  const additivesCount = typeof raw.additives_n === 'number' ? raw.additives_n : null;
+  const { verdict, score } = scoreProduct({ nutriscore, nova, additivesCount });
+  const rating = overallRating(score, verdict);
+
+  return {
+    barcode: code,
+    name,
+    brand,
+    imageUrl,
+    nutriscore,
+    nova,
+    verdict,
+    rating,
+    score,
+  };
+}
+
+/** Cap search payload + UI list so we stay light on OFF search quotas (10/min/IP). */
+const ALT_PAGE_SIZE = 15;
+const ALT_LIMIT = 3;
+const ALT_CACHE_TTL_MS = 30 * 60 * 1000;
+const ALT_CACHE_VERSION = 2;
+
+type AltCacheEntry = {
+  category: string | null;
+  items: AlternativeProduct[];
+  at: number;
+  version: number;
+};
+
+const altCache = new Map<string, AltCacheEntry>();
+
+function labelForTag(tag: string): string {
+  return tag.replace(/^[^:]+:/i, '').replace(/-/g, ' ');
+}
+
+async function searchCategory(
+  tag: string,
+  product: FoodProduct,
+  signal: AbortSignal
+): Promise<AlternativeProduct[]> {
+  const params = new URLSearchParams({
+    categories_tags: tag,
+    fields: ALT_FIELDS,
+    page_size: String(ALT_PAGE_SIZE),
+    sort_by: 'nutriscore_score',
+  });
+
+  const res = await fetch(
+    `https://world.openfoodfacts.org/api/v2/search?${params.toString()}`,
+    {
+      signal,
+      headers: {
+        'User-Agent': 'Ceres/1.0 (food score app; local-dev)',
+        Accept: 'application/json',
+      },
+    }
+  );
+  if (!res.ok) {
+    throw new Error(`Search failed (${res.status})`);
+  }
+  const json = await res.json();
+  const products = Array.isArray(json?.products) ? json.products : [];
+  const seen = new Set<string>([product.barcode]);
+  const scored: AlternativeProduct[] = [];
+
+  for (const raw of products) {
+    if (!raw || typeof raw !== 'object') continue;
+    const hit = scoreSearchHit(raw as Record<string, unknown>);
+    if (!hit || seen.has(hit.barcode)) continue;
+    seen.add(hit.barcode);
+    if (!isHealthierThan(hit, product)) continue;
+    scored.push(hit);
+  }
+
+  scored.sort((a, b) => {
+    const ra = a.rating ?? a.score;
+    const rb = b.rating ?? b.score;
+    if (rb !== ra) return rb - ra;
+    return nutriRank(a.nutriscore) - nutriRank(b.nutriscore);
+  });
+  return scored;
+}
+
+/**
+ * Healthier products in the same Open Food Facts category (better Ceres score / Nutri-Score).
+ * Successful results are cached per barcode for 30 minutes. Empty/failed lookups are not cached.
+ */
+export async function findBetterAlternatives(
+  product: FoodProduct,
+  timeoutMs = 10000
+): Promise<{ category: string | null; items: AlternativeProduct[]; error?: string }> {
+  const cached = altCache.get(product.barcode);
+  if (
+    cached &&
+    cached.version === ALT_CACHE_VERSION &&
+    Date.now() - cached.at < ALT_CACHE_TTL_MS &&
+    cached.items.length > 0
+  ) {
+    return { category: cached.category, items: cached.items };
+  }
+
+  const candidates = pickCategoryCandidates(product.categoryTags);
+  if (!candidates.length) {
+    return { category: null, items: [] };
+  }
+
+  try {
+    return await withTimeout(timeoutMs, async (signal) => {
+      let bestCategory = candidates[0]!;
+      let bestItems: AlternativeProduct[] = [];
+      let lastError: string | undefined;
+
+      // Mid-level category first, then one broader fallback (max 2 searches).
+      for (const tag of candidates.slice(0, 2)) {
+        try {
+          const hits = await searchCategory(tag, product, signal);
+          if (hits.length > bestItems.length) {
+            bestItems = hits;
+            bestCategory = tag;
+          }
+          if (bestItems.length >= ALT_LIMIT) break;
+        } catch (e) {
+          lastError = e instanceof Error ? e.message : 'Search failed';
+        }
+      }
+
+      const items = bestItems.slice(0, ALT_LIMIT);
+      const category = labelForTag(bestCategory);
+      if (items.length > 0) {
+        altCache.set(product.barcode, {
+          category,
+          items,
+          at: Date.now(),
+          version: ALT_CACHE_VERSION,
+        });
+        return { category, items };
+      }
+      return {
+        category,
+        items: [],
+        error: lastError,
+      };
+    });
+  } catch {
+    return {
+      category: labelForTag(candidates[0]!),
+      items: [],
+      error: 'Could not reach Open Food Facts',
     };
   }
 }
+

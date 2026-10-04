@@ -11,6 +11,7 @@ import { colors, font, radius } from '../../theme';
 const TABS: { name: string; label: string; icon: IconName }[] = [
   { name: 'index', label: 'Scan', icon: 'scan' },
   { name: 'history', label: 'History', icon: 'history' },
+  { name: 'swaps', label: 'Swaps', icon: 'swap' },
   { name: 'settings', label: 'Settings', icon: 'settings' },
 ];
 
@@ -28,6 +29,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="history" />
+      <Tabs.Screen name="swaps" />
       <Tabs.Screen name="settings" />
     </Tabs>
   );
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
   },
   dock: {
     width: '100%',
-    maxWidth: 340,
+    maxWidth: 400,
     borderRadius: radius.pill,
     shadowColor: '#000',
     shadowOpacity: 0.35,

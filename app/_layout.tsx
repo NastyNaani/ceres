@@ -56,6 +56,7 @@ export default function RootLayout() {
               }}
             >
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="product/[barcode]" options={{ animation: 'fade', presentation: 'card' }} />
               <Stack.Screen name="privacy" options={{ animation: 'fade', presentation: 'card' }} />
             </Stack>
             <OnboardingGate />

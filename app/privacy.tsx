@@ -36,10 +36,13 @@ export default function PrivacyScreen() {
           The camera is used only to read barcodes. Frames are not uploaded; only the decoded
           barcode digits are sent when looking up a product.
         </Card>
-        <Card title="Open Food Facts">
+        <Card title="Product lookups">
           When you scan (or reopen) a product, the barcode is sent to Open Food Facts
-          (openfoodfacts.org) to fetch name, Nutri-Score, NOVA, ingredients, and related fields.
-          See their privacy policy for how they handle requests.
+          (openfoodfacts.org) for name, Nutri-Score, NOVA, ingredients, and related fields. If that
+          lookup misses or returns little data, Ceres may call its own secure server proxy, which
+          then queries USDA FoodData Central (fdc.nal.usda.gov). The USDA API key stays on the
+          server and is not embedded in the app. See each provider’s privacy policy for how they
+          handle requests.
         </Card>
         <Card title="No ads or trackers">
           Ceres does not include analytics SDKs, ad networks, or crash reporters in this build.

@@ -10,19 +10,16 @@ const META: Record<Verdict, { color: string; label: string }> = {
   excellent: { color: colors.success, label: 'Excellent' },
   good: { color: colors.success, label: 'Good' },
   ok: { color: colors.caution, label: 'Okay' },
-  poor: { color: colors.danger, label: 'Poor' },
-  worst: { color: colors.dangerDeep, label: 'Worst' },
-  abysmal: { color: colors.abysmal, label: 'Abysmal' },
+  poor: { color: colors.danger, label: 'Weak' },
+  worst: { color: colors.dangerDeep, label: 'Skip' },
+  abysmal: { color: colors.abysmal, label: 'Rough' },
   unknown: { color: colors.silverDim, label: 'Unknown' },
 };
 
 export function scoreMeta(verdict: Verdict, rating?: number | null) {
   const base = META[verdict] ?? META.unknown;
-  if (typeof rating === 'number' && rating <= 0) {
-    const label = verdictLabel(verdict, rating);
-    const color =
-      rating <= -8 ? colors.abysmal : rating <= -4 ? colors.dangerDeep : colors.danger;
-    return { color, label };
+  if (typeof rating === 'number' && rating < 0) {
+    return { color: colors.danger, label: verdictLabel(verdict, rating) };
   }
   return base;
 }

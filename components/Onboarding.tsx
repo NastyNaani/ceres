@@ -28,7 +28,7 @@ const SLIDES: { icon: IconName; title: string; body: string }[] = [
   {
     icon: 'shield',
     title: 'Clear verdict',
-    body: 'See Elite through Abysmal — grounded in Nutri-Score, NOVA, additives, and the ingredient list.',
+    body: 'See Elite through Rough — grounded in Nutri-Score, NOVA, additives, and the ingredient list.',
   },
   {
     icon: 'history',

@@ -37,7 +37,8 @@ export type IconName =
   | 'lock'
   | 'tag'
   | 'plus'
-  | 'minus';
+  | 'minus'
+  | 'swap';
 
 type Props = {
   name: IconName;
@@ -265,6 +266,12 @@ export function Icon({ name, size = 24, color = colors.silver, strokeWidth = 1.8
         </>
       )}
       {name === 'minus' && <Line x1="5" y1="12" x2="19" y2="12" {...common} />}
+      {name === 'swap' && (
+        <>
+          <Path d="M7 7h11.5M15 3.5 18.5 7 15 10.5" {...common} />
+          <Path d="M17 17H5.5M9 20.5 5.5 17 9 13.5" {...common} />
+        </>
+      )}
     </Svg>
   );
 }

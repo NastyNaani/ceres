@@ -14,7 +14,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -33,6 +32,7 @@ import {
 import type { AnalyzedIngredient, IngredientTier } from '../lib/ingredients';
 import { useReducedMotion } from '../lib/motion';
 import type { MacroFlag, MacroRow, NutritionFacts } from '../lib/nutrition';
+import { shareProduct } from '../lib/share';
 import { matchWatchedAllergens, useSettings } from '../lib/settings';
 import { colors, font, radius, spacing } from '../theme';
 import { GhostButton, PrimaryButton } from './Buttons';
@@ -171,28 +171,7 @@ export function ProductResultSheet({
 
   const shareVerdict = async () => {
     if (!product) return;
-    const flagLine =
-      product.flags.length > 0
-        ? product.flags
-            .filter((f) => f.tone === 'danger' || f.tone === 'caution')
-            .slice(0, 4)
-            .map((f) => f.label)
-            .join(' · ')
-        : null;
-    const lines = [
-      `${product.name}${product.brand ? ` — ${product.brand}` : ''}`,
-      `Ceres: ${verdictLabel(product.verdict, product.rating)} (${formatRating(product.rating)})`,
-      product.nutriscore ? `Nutri-Score ${product.nutriscore.toUpperCase()}` : null,
-      product.nova ? `NOVA ${product.nova}` : null,
-      product.ingredientCount > 0 ? `${product.ingredientCount} ingredients` : null,
-      product.hasAddedSugar ? 'Added sugar on label' : null,
-      flagLine,
-      `Barcode ${product.barcode}`,
-      `https://world.openfoodfacts.org/product/${product.barcode}`,
-    ].filter(Boolean);
-    try {
-      await Share.share({ message: lines.join('\n') });
-    } catch {}
+    await shareProduct(product);
   };
 
   const copyBarcode = async () => {
@@ -203,11 +182,11 @@ export function ProductResultSheet({
     }
   };
 
-  const openOff = () => {
+  const openSource = () => {
     if (!product) return;
-    Linking.openURL(`https://world.openfoodfacts.org/product/${encodeURIComponent(product.barcode)}`).catch(
-      () => {}
-    );
+    Linking.openURL(
+      `https://world.openfoodfacts.org/product/${encodeURIComponent(product.barcode)}`
+    ).catch(() => {});
   };
 
   return (
@@ -293,7 +272,7 @@ export function ProductResultSheet({
                     borderLeftWidth: 3,
                     backgroundColor:
                       product.rating !== null && product.rating < 0
-                        ? colors.abysmalDim
+                        ? colors.dangerDim
                         : product.verdict === 'elite'
                           ? colors.eliteDim
                           : 'rgba(255,255,255,0.03)',
@@ -451,7 +430,7 @@ export function ProductResultSheet({
 
               <View style={styles.utilityRow}>
                 <GhostButton label="Share" icon="share" onPress={shareVerdict} style={{ flex: 1 }} />
-                <GhostButton label="OFF" icon="external" onPress={openOff} style={{ flex: 1 }} />
+                <GhostButton label="Source" icon="external" onPress={openSource} style={{ flex: 1 }} />
               </View>
 
               <View style={styles.actions}>
